@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="ISA ETF Portfolio Dashboard — track your holdings at a glance">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ISA ETF Portfolio">
+<title>ISA ETF Portfolio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --white: #ffffff;
+    --grey-light: #f5f5f5;
+    --grey-mid: #e0e0e0;
+    --grey-text: #888;
+    --green: #1a7a4a;
+    --red: #c0392b;
+    --accent: #0a0a0a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--white);
+    color: var(--black);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 60px;
+    background: var(--white);
+    border-bottom: 1px solid var(--grey-mid);
+  }
+  .nav-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; letter-spacing: -0.5px;
+  }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a {
+    text-decoration: none; color: var(--grey-text);
+    font-size: 13px; letter-spacing: 0.05em;
+    cursor: pointer; transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--black); }
+
+  /* HERO */
+  .hero {
+    padding: 80px 60px 60px;
+    border-bottom: 1px solid var(--grey-mid);
+  }
+  .hero-date { font-size: 12px; color: var(--grey-text); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; }
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(48px, 6vw, 96px);
+    line-height: 1;
+    letter-spacing: -2px;
+    margin-bottom: 48px;
+  }
+  .hero-title em { font-style: italic; color: var(--grey-text); }
+
+  .kpi-row { display: flex; gap: 0; border-top: 1px solid var(--grey-mid); }
+  .kpi {
+    flex: 1; padding: 32px 40px 32px 0;
+    border-right: 1px solid var(--grey-mid);
+  }
+  .kpi:last-child { border-right: none; padding-right: 0; padding-left: 40px; }
+  .kpi:first-child { padding-left: 0; }
+  .kpi-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 8px; }
+  .kpi-value { font-family: 'DM Serif Display', serif; font-size: 36px; letter-spacing: -1px; }
+  .kpi-value.up { color: var(--green); }
+  .kpi-value.down { color: var(--red); }
+  .kpi-sub { font-size: 12px; color: var(--grey-text); margin-top: 4px; }
+
+  /* SECTIONS */
+  section { padding: 80px 60px; border-bottom: 1px solid var(--grey-mid); }
+  .section-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 48px; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 36px; letter-spacing: -1px; margin-bottom: 48px; }
+
+  /* CHART GRID */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .chart-grid .chart-panel:only-child { grid-column: 1 / -1; }
+  .chart-grid .chart-panel:empty { display: none; }
+  .chart-panel {}
+  .chart-panel h3 { font-size: 13px; font-weight: 500; margin-bottom: 24px; letter-spacing: -0.2px; }
+  .chart-wrap { position: relative; }
+
+  /* MOVERS */
+  .movers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .movers-title { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 20px; }
+  .mover-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--grey-light);
+  }
+  .mover-name { font-weight: 500; font-size: 13px; }
+  .mover-symbol { font-size: 11px; color: var(--grey-text); margin-top: 2px; }
+  .mover-change { font-family: 'DM Serif Display', serif; font-size: 22px; display: flex; align-items: center; gap: 4px; }
+  .mover-change.up   { color: var(--green); }
+  .mover-change.down { color: var(--red); }
+  .mover-change .mover-icon { font-size: 14px; font-family: 'DM Sans', sans-serif; }
+
+  /* HOLDINGS TABLE */
+  .table-controls {
+    display: flex; align-items: center; gap: 20px; margin-bottom: 32px;
+  }
+  .search-input {
+    flex: 1; padding: 12px 16px;
+    border: 1px solid var(--grey-mid); border-radius: 2px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    outline: none; background: var(--white);
+  }
+  .search-input:focus { border-color: var(--black); }
+  .sort-btn {
+    padding: 12px 20px; background: var(--black); color: var(--white);
+    border: none; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    font-size: 12px; letter-spacing: 0.05em;
+  }
+
+  .holdings-table { width: 100%; border-collapse: collapse; }
+  .holdings-table th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--grey-text); border-bottom: 1px solid var(--grey-mid);
+    cursor: pointer; user-select: none;
+  }
+  .holdings-table th:hover { color: var(--black); }
+  .holdings-table td { padding: 14px 16px; border-bottom: 1px solid var(--grey-light); font-size: 13px; }
+  .holdings-table tr:hover td { background: var(--grey-light); cursor: pointer; }
+  .ticker-badge {
+    display: inline-block; background: var(--grey-light);
+    padding: 2px 8px; font-size: 11px; letter-spacing: 0.05em; border-radius: 2px;
+  }
+  .change-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border-radius: 2px;
+    font-size: 12px; font-weight: 500;
+  }
+  .change-pill.up   { background: rgba(26,122,74,0.08); color: var(--green); border: 1px solid rgba(26,122,74,0.25); }
+  .change-pill.down { background: rgba(192,57,43,0.08); color: var(--red);   border: 1px solid rgba(192,57,43,0.25); }
+  .change-pill.flat { background: var(--grey-light); color: var(--grey-text); border: 1px solid var(--grey-mid); }
+  .change-pill .pill-icon { font-size: 10px; line-height: 1; }
+
+  /* SPARKLINE COL */
+  .sparkline-cell { width: 100px; }
+  .sparkline-placeholder {
+    width: 80px; height: 28px; display: inline-block;
+    vertical-align: middle; cursor: pointer;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(10,10,10,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); width: 720px; max-width: 95vw;
+    max-height: 88vh; overflow-y: auto;
+    padding: 48px; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 24px; right: 24px;
+    background: none; border: none; font-size: 24px;
+    cursor: pointer; color: var(--grey-text); line-height: 1;
+  }
+  .modal-close:hover { color: var(--black); }
+  .modal-symbol { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 8px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 32px; letter-spacing: -1px; margin-bottom: 24px; }
+  .modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; }
+  .modal-stat-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 6px; }
+  .modal-stat-value { font-family: 'DM Serif Display', serif; font-size: 28px; }
+  .modal-chart-title { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 16px; }
+  .modal-chart-wrap { height: 220px; }
+  .modal-ft-link {
+    display: inline-block; margin-top: 24px;
+    font-size: 12px; color: var(--grey-text);
+    text-decoration: none; border-bottom: 1px solid var(--grey-mid);
+  }
+  .modal-ft-link:hover { color: var(--black); border-color: var(--black); }
+
+  /* UPLOAD SECTION */
+  .upload-zone {
+    display: block;
+    border: 1px solid var(--grey-mid); padding: 60px;
+    text-align: center; transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--black); background: var(--grey-light);
+  }
+  .upload-icon { font-size: 32px; margin-bottom: 16px; }
+  .upload-text { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+  .upload-sub { font-size: 13px; color: var(--grey-text); }
+  #csv-file-input {
+    display: block;
+    margin: 0 auto;
+    padding: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+    display: inline-block; margin-top: 20px;
+    padding: 12px 28px; background: var(--black); color: var(--white);
+    border: none; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; letter-spacing: 0.05em;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 40px 60px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--grey-text);
+  }
+
+  /* PAGINATION */
+  .pagination { display: flex; gap: 4px; margin-top: 24px; }
+  .page-btn {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--grey-mid); background: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+  }
+  .page-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+  .page-btn:hover:not(.active) { border-color: var(--black); }
+  .page-info { font-size: 12px; color: var(--grey-text); margin-left: 12px; display: flex; align-items: center; }
+
+  @media (max-width: 768px) {
+    nav { padding: 16px 24px; }
+    .hero { padding: 48px 24px 40px; }
+    section { padding: 48px 24px; }
+    .kpi-row { flex-direction: column; }
+    .kpi { border-right: none; border-bottom: 1px solid var(--grey-mid); padding: 24px 0; }
+    .kpi:last-child { padding-left: 0; }
+    .chart-grid, .movers-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 12px; }
+    .heatmap-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+  }
+
+  /* HEATMAP */
+  .heatmap-legend { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; font-size: 12px; color: var(--grey-text); flex-wrap: wrap; }
+  .heatmap-legend-bar { display: flex; gap: 2px; align-items: center; }
+  .heatmap-legend-swatch { width: 24px; height: 12px; border-radius: 1px; }
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 3px;
+  }
+  .heatmap-cell {
+    aspect-ratio: 1.4;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 6px 4px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .heatmap-cell:hover { opacity: 0.82; transform: scale(1.04); z-index: 2; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+  .heatmap-cell-ticker { font-size: 10px; font-weight: 500; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 86%; text-align: center; }
+  .heatmap-cell-change { font-size: 12px; font-weight: 500; margin-top: 3px; }
+  .heatmap-controls { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+  .heatmap-filter-btn {
+    padding: 6px 16px; border: 1px solid var(--grey-mid); background: none;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer;
+    border-radius: 2px; transition: background 0.15s, border-color 0.15s;
+  }
+  .heatmap-filter-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+
+  /* HISTORY */
+  .history-empty { color: var(--grey-text); font-size: 14px; line-height: 1.9; padding: 40px 0; }
+  .history-snapshots { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; align-items: center; }
+  .history-snapshot-pill {
+    padding: 5px 14px; border: 1px solid var(--grey-mid);
+    font-size: 12px; border-radius: 2px; cursor: pointer;
+    transition: background 0.15s; display: flex; align-items: center; gap: 6px;
+  }
+  .history-snapshot-pill:hover { background: var(--grey-light); }
+  .history-snapshot-pill.active { background: var(--black); color: var(--white); border-color: var(--black); }
+  .history-del {
+    background: none; border: none; cursor: pointer; padding: 0; line-height: 1;
+    opacity: 0.5; font-size: 13px;
+  }
+  .history-snapshot-pill:not(.active) .history-del:hover { opacity: 1; }
+  .history-snapshot-pill.active .history-del { color: var(--white); }
+  .history-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 48px; border-top: 1px solid var(--grey-mid); padding-top: 32px; }
+  .history-stat-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 6px; }
+  .history-stat-value { font-family: 'DM Serif Display', serif; font-size: 28px; }
+  .history-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .history-chart-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 16px; }
+  @media (max-width: 768px) {
+    .history-stats { grid-template-columns: 1fr 1fr; }
+    .history-chart-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">ISA ETF Portfolio</div>
+  <div class="nav-links">
+    <a class="active" onclick="scrollToSection('#overview')">Overview</a>
+    <a onclick="scrollToSection('#analysis')">Analysis</a>
+    <a onclick="scrollToSection('#heatmap')">Heatmap</a>
+    <a onclick="scrollToSection('#history')">History</a>
+    <a onclick="scrollToSection('#holdings')">Holdings</a>
+    <a onclick="scrollToSection('#update')">Update</a>
+  </div>
+</nav>
+
+<div class="hero" id="overview">
+  <div class="hero-date" id="hero-date"></div>
+  <h1 class="hero-title">ISA ETF<br><em>Portfolio</em></h1>
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Total Holdings</div>
+      <div class="kpi-value" id="kpi-count">—</div>
+      <div class="kpi-sub">equally weighted</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Advancing Today</div>
+      <div class="kpi-value up" id="kpi-up">—</div>
+      <div class="kpi-sub" id="kpi-up-pct"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Declining Today</div>
+      <div class="kpi-value down" id="kpi-down">—</div>
+      <div class="kpi-sub" id="kpi-down-pct"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Daily Change</div>
+      <div class="kpi-value" id="kpi-avg">—</div>
+      <div class="kpi-sub">across all holdings</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Exchanges</div>
+      <div class="kpi-value" id="kpi-exchanges">—</div>
+      <div class="kpi-sub" id="kpi-exchange-names"></div>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="section-label">Today's Movers</div>
+  <div class="movers-grid">
+    <div>
+      <div class="movers-title">↑ Top Gainers</div>
+      <div id="top-gainers"></div>
+    </div>
+    <div>
+      <div class="movers-title">↓ Top Losers</div>
+      <div id="top-losers"></div>
+    </div>
+  </div>
+</section>
+
+<section id="analysis">
+  <div class="section-label">Portfolio Analysis</div>
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <h3>Today's Daily Performance Distribution</h3>
+      <div class="chart-wrap" style="height:260px;"><canvas id="chart-distribution"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Advance / Decline Ratio</h3>
+      <div class="chart-wrap" style="height:260px;"><canvas id="chart-adv-dec"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- HEATMAP SECTION -->
+<section id="heatmap">
+  <div class="section-label">Portfolio Heatmap</div>
+  <p style="color:var(--grey-text); margin-bottom:32px; max-width:560px; line-height:1.7; font-size:13px;">
+    Each cell represents one holding, equally sized. Colour intensity shows today's % change — darker green = stronger gain, darker red = larger loss. Hover for details, click to open the holding.
+  </p>
+  <div class="heatmap-controls">
+    <button class="heatmap-filter-btn active" onclick="setHeatmapFilter('all', this)">All Holdings</button>
+    <button class="heatmap-filter-btn" onclick="setHeatmapFilter('up', this)">Gainers only</button>
+    <button class="heatmap-filter-btn" onclick="setHeatmapFilter('down', this)">Losers only</button>
+    <button class="heatmap-filter-btn" onclick="setHeatmapFilter('flat', this)">Unchanged</button>
+  </div>
+  <div class="heatmap-legend">
+    <span>Loss</span>
+    <div class="heatmap-legend-bar" id="heatmap-legend-bar"></div>
+    <span>Gain</span>
+    <span style="margin-left:16px; border-left:1px solid var(--grey-mid); padding-left:16px;">Click any cell to view holding detail</span>
+  </div>
+  <div class="heatmap-grid" id="heatmap-grid"></div>
+</section>
+
+<!-- HISTORY SECTION -->
+<section id="history">
+  <div class="section-label">Portfolio History</div>
+  <p style="color:var(--grey-text); margin-bottom:32px; max-width:560px; line-height:1.7; font-size:13px;">
+    Each time you upload a CSV, a snapshot is saved automatically. Over time this builds a record of your portfolio's daily average move and holding count. Upload regularly to build your history.
+  </p>
+  <div id="history-content">
+    <div class="history-empty" id="history-empty">
+      No history yet. Upload your first CSV update to begin recording snapshots.<br>
+      Each upload is stored in your browser with the date and portfolio metrics.
+    </div>
+    <div id="history-has-data" style="display:none;">
+      <div class="history-snapshots" id="history-pills"></div>
+      <div class="history-stats" id="history-stats"></div>
+      <div class="history-chart-row">
+        <div>
+          <div class="history-chart-label">Portfolio Avg Daily Change — Historical</div>
+          <div style="height:240px;"><canvas id="chart-history-perf"></canvas></div>
+        </div>
+        <div>
+          <div class="history-chart-label">Holdings Count Over Time</div>
+          <div style="height:240px;"><canvas id="chart-history-count"></canvas></div>
+        </div>
+      </div>
+      <div style="margin-top:48px;">
+        <div class="history-chart-label">vs. Benchmark — Illustrative Comparison</div>
+        <p style="font-size:12px; color:var(--grey-text); margin-bottom:16px;">Your portfolio's recorded average daily change overlaid against approximate FTSE All-Share and FTSE 250 benchmark moves. <strong>Benchmark figures are illustrative</strong> — upload regularly and connect to a market data API for real comparison.</p>
+        <div style="height:240px;"><canvas id="chart-benchmark"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="holdings">
+  <div class="section-label">All Holdings</div>
+  <div class="table-controls">
+    <input class="search-input" id="search" type="text" placeholder="Search by name or ticker…">
+    <select class="search-input" id="sort-select" style="max-width:200px;">
+      <option value="name-asc">Name A–Z</option>
+      <option value="name-desc">Name Z–A</option>
+      <option value="change-desc">Biggest Gain</option>
+      <option value="change-asc">Biggest Loss</option>
+      <option value="price-desc">Highest Price</option>
+      <option value="price-asc">Lowest Price</option>
+      <option value="volume-desc">Most Traded</option>
+    </select>
+  </div>
+  <table class="holdings-table" id="holdings-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Company</th>
+        <th>Ticker</th>
+        <th>Price</th>
+        <th>Change %</th>
+      </tr>
+    </thead>
+    <tbody id="holdings-tbody"></tbody>
+  </table>
+  <div style="display:flex; align-items:center; margin-top:24px;">
+    <div class="pagination" id="pagination"></div>
+    <div class="page-info" id="page-info"></div>
+  </div>
+</section>
+
+<section id="update">
+  <div class="section-label">Update Portfolio</div>
+  <h2 class="section-title">Upload a new CSV</h2>
+  <p style="color:var(--grey-text); margin-bottom:40px; max-width:480px; line-height:1.7;">
+    Export your latest portfolio data from the Financial Times Portfolio tool and upload it here to refresh all holdings, prices, and charts.
+  </p>
+  <div class="upload-zone" id="upload-zone">
+    <div class="upload-icon">↑</div>
+    <div class="upload-text">Select or drop your CSV file</div>
+    <div class="upload-sub" style="margin-bottom:20px;">Exported from the Financial Times Portfolio tool</div>
+    <input type="file" id="csv-file-input" accept=".csv,text/csv,application/csv,text/plain">
+  </div>
+  <div id="upload-status" style="margin-top:20px; font-size:13px; color:var(--grey-text);"></div>
+  <div id="clear-storage-wrap" style="margin-top:12px; display:none;">
+    <button onclick="clearStorage()" style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--grey-text);cursor:pointer;text-decoration:underline;padding:0;">Clear saved portfolio data</button>
+  </div>
+  <div style="margin-top:40px; padding-top:40px; border-top:1px solid var(--grey-mid);">
+    <div class="section-label" style="margin-bottom:16px;">Expected CSV Format</div>
+    <code style="font-size:12px; color:var(--grey-text); background:var(--grey-light); padding:16px 20px; display:block; line-height:2;">
+      Name, Symbol, Last Price, Last Price_Currency, Today's price Change - %, Volume, Chart, 1-Year Trailing Total Return
+    </code>
+  </div>
+</section>
+
+<footer>
+  <div>ISA ETF Portfolio Dashboard — Data from FT Portfolio Export</div>
+  <div id="footer-date"></div>
+</footer>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-symbol" id="modal-symbol"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-stats">
+      <div>
+        <div class="modal-stat-label">Price</div>
+        <div class="modal-stat-value" id="modal-price"></div>
+      </div>
+      <div>
+        <div class="modal-stat-label">Today's Change</div>
+        <div class="modal-stat-value" id="modal-change"></div>
+      </div>
+      <div>
+        <div class="modal-stat-label">Volume</div>
+        <div class="modal-stat-value" id="modal-volume"></div>
+      </div>
+    </div>
+    <div class="modal-chart-title">Simulated 12-Month Price Performance</div>
+    <div class="modal-chart-wrap"><canvas id="modal-chart"></canvas></div>
+    <a class="modal-ft-link" id="modal-ft-link" target="_blank">View on Financial Times ↗</a>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+let PORTFOLIO = [{"name": "4imprint Group PLC", "symbol": "FOUR:LSE", "price": 4030.0, "currency": "GBX", "change": 4.4, "volume": 92540}, {"name": "Aberdeen Group PLC", "symbol": "ABDN:LSE", "price": 216.2, "currency": "GBX", "change": 1.31, "volume": 2538744}, {"name": "Abrdn Diversified Income & Growth plc", "symbol": "ADIG:LSE", "price": 28.35, "currency": "GBX", "change": -1.22, "volume": 1090751}, {"name": "AEW UK REIT Ord", "symbol": "AEWU:LSE", "price": 109.8, "currency": "GBX", "change": 0.37, "volume": 170384}, {"name": "Agronomics Ltd", "symbol": "ANIC:LSE", "price": 6.2, "currency": "GBX", "change": 0.0, "volume": 1646061}, {"name": "AIB Group PLC", "symbol": "AIBG:LSE", "price": 774.0, "currency": "GBX", "change": -0.26, "volume": 98968}, {"name": "Altitude Group PLC", "symbol": "ALT:LSE", "price": 23.0, "currency": "GBX", "change": -2.13, "volume": 25000}, {"name": "Apple Hospitality REIT Inc", "symbol": "APLE:NYQ", "price": 12.35, "currency": "USD", "change": 0.9, "volume": 1702289}, {"name": "Aquila European Renewables PLC", "symbol": "AERS:LSE", "price": 20.95, "currency": "GBX", "change": -2.33, "volume": 115856}, {"name": "Ares Capital Corp", "symbol": "ARCC:NSQ", "price": 19.15, "currency": "USD", "change": 1.06, "volume": 10807036}, {"name": "Argentex Group PLC *", "symbol": "AGFX:LSE", "price": 2.72, "currency": "GBX", "change": 0.0, "volume": 0}, {"name": "Ashmore Group PLC", "symbol": "ASHM:LSE", "price": 245.0, "currency": "GBX", "change": 1.74, "volume": 870058}, {"name": "Assetco PLC *", "symbol": "ASTO:LSE", "price": 36.5, "currency": "GBX", "change": 0.0, "volume": 2231576}, {"name": "Augmentum Fintech PLC", "symbol": "AUGM:LSE", "price": 88.4, "currency": "GBX", "change": 1.26, "volume": 266524}, {"name": "Aviva PLC", "symbol": "AV.:LSE", "price": 655.4, "currency": "GBX", "change": 1.96, "volume": 6361012}, {"name": "Barclays PLC", "symbol": "BARC:LSE", "price": 473.8, "currency": "GBX", "change": 1.25, "volume": 41768845}, {"name": "Bayer AG", "symbol": "BAYX.N:GER", "price": 43.68, "currency": "EUR", "change": -4.16, "volume": 5902348}, {"name": "Bellevue Healthcare Trust plc", "symbol": "BBH:LSE", "price": 133.8, "currency": "GBX", "change": -0.59, "volume": 400576}, {"name": "BioPharma Credit PLC", "symbol": "BPCR:LSE", "price": 0.93, "currency": "USD", "change": -1.27, "volume": 1078092}, {"name": "Bioventix PLC", "symbol": "BVXP:LSE", "price": 1650.0, "currency": "GBX", "change": -1.49, "volume": 6410}, {"name": "BlackRock Latin American Investment Trust Plc", "symbol": "BRLA:LSE", "price": 485.0, "currency": "GBX", "change": -0.82, "volume": 83138}, {"name": "BRCK Group PLC", "symbol": "BRCK:LSE", "price": 50.6, "currency": "GBX", "change": 0.8, "volume": 623573}, {"name": "BTG Consulting PLC", "symbol": "BTG:LSE", "price": 118.0, "currency": "GBX", "change": -0.42, "volume": 141553}, {"name": "Caledonia Investments Plc", "symbol": "CLDN:LSE", "price": 350.0, "currency": "GBX", "change": -0.71, "volume": 223411}, {"name": "Card Factory PLC", "symbol": "CARD:LSE", "price": 71.3, "currency": "GBX", "change": 0.42, "volume": 9149294}, {"name": "Carrefour SA", "symbol": "CA:PAR", "price": 15.31, "currency": "EUR", "change": 0.96, "volume": 2696834}, {"name": "Central Asia Metals PLC", "symbol": "CAML:LSE", "price": 226.0, "currency": "GBX", "change": 1.35, "volume": 449488}, {"name": "Chariot Ltd", "symbol": "CHAR:LSE", "price": 1.38, "currency": "GBX", "change": -6.76, "volume": 26302094}, {"name": "Chemring Group PLC", "symbol": "CHG:LSE", "price": 510.0, "currency": "GBX", "change": -2.3, "volume": 2596629}, {"name": "Chesnara PLC", "symbol": "CSN:LSE", "price": 327.0, "currency": "GBX", "change": 0.62, "volume": 384889}, {"name": "CleanTech Lithium PLC", "symbol": "CTL:LSE", "price": 9.2, "currency": "GBX", "change": 5.14, "volume": 240593}, {"name": "Close Brothers Group PLC", "symbol": "CBG:LSE", "price": 491.2, "currency": "GBX", "change": 0.41, "volume": 167036}, {"name": "CLS Holdings PLC", "symbol": "CLI:LSE", "price": 59.8, "currency": "GBX", "change": -0.17, "volume": 454424}, {"name": "Cordiant Digital Infrastructure", "symbol": "CORD:LSE", "price": 105.0, "currency": "GBX", "change": 0.0, "volume": 1410897}, {"name": "CT Private Equity Trust PLC", "symbol": "CTPE:LSE", "price": 520.0, "currency": "GBX", "change": -2.62, "volume": 40129}, {"name": "Deltic Energy PLC", "symbol": "DELT:LSE", "price": 3.5, "currency": "GBX", "change": 0.0, "volume": 103945}, {"name": "Digital 9 Infrastructure PLC", "symbol": "DGI9:LSE", "price": 5.34, "currency": "GBX", "change": 0.75, "volume": 1074935}, {"name": "Diverse Income Trust", "symbol": "DIVI:LSE", "price": 118.0, "currency": "GBX", "change": 0.43, "volume": 437366}, {"name": "Diversified Energy Co", "symbol": "DEC:LSE", "price": 1024.0, "currency": "GBX", "change": -1.54, "volume": 47573}, {"name": "DSW Capital PLC", "symbol": "DSW:LSE", "price": 57.5, "currency": "GBX", "change": 0.0, "volume": 513}, {"name": "Duke Capital Ltd", "symbol": "DUKE:LSE", "price": 27.5, "currency": "GBX", "change": -3.51, "volume": 2882043}, {"name": "Ecora Royalties PLC", "symbol": "ECOR:LSE", "price": 139.2, "currency": "GBX", "change": 0.58, "volume": 1079686}, {"name": "EKF Diagnostics Holdings PLC", "symbol": "EKF:LSE", "price": 26.3, "currency": "GBX", "change": -0.75, "volume": 256634}, {"name": "Elixirr International PLC", "symbol": "ELIX:LSE", "price": 674.0, "currency": "GBX", "change": -2.6, "volume": 43213}, {"name": "Eneraqua Technologies PLC *", "symbol": "ETP:LSE", "price": 19.0, "currency": "GBX", "change": 0.0, "volume": 73334}, {"name": "Epwin Group PLC *", "symbol": "EPWN:LSE", "price": 119.5, "currency": "GBX", "change": 0.0, "volume": 0}, {"name": "Essensys PLC", "symbol": "ESYS:LSE", "price": 18.0, "currency": "GBX", "change": 0.0, "volume": 500380}, {"name": "FDM Group (Holdings) PLC", "symbol": "FDM:LSE", "price": 142.6, "currency": "GBX", "change": -0.28, "volume": 268178}, {"name": "Flowtech Fluidpower PLC", "symbol": "FLO:LSE", "price": 56.9, "currency": "GBX", "change": 6.95, "volume": 221226}, {"name": "Foresight Environmental Infrastructure Limited", "symbol": "FGEN:LSE", "price": 67.2, "currency": "GBX", "change": -0.88, "volume": 1148152}, {"name": "Foresight Solar Fund Ltd", "symbol": "FSFL:LSE", "price": 61.7, "currency": "GBX", "change": 1.15, "volume": 959510}, {"name": "Frontier IP Group PLC", "symbol": "FIPP:LSE", "price": 11.75, "currency": "GBX", "change": 0.0, "volume": 44244}, {"name": "Gateley (Holdings) PLC", "symbol": "GTLY:LSE", "price": 87.5, "currency": "GBX", "change": -1.69, "volume": 109471}, {"name": "GCP Infrastructure Investments", "symbol": "GCP:LSE", "price": 76.9, "currency": "GBX", "change": 0.39, "volume": 1153215}, {"name": "Gladstone Land Corp", "symbol": "LAND:NMQ", "price": 10.91, "currency": "USD", "change": -0.73, "volume": 555412}, {"name": "Glencore PLC", "symbol": "GLEN:LSE", "price": 507.0, "currency": "GBX", "change": 0.4, "volume": 32470645}, {"name": "Gore Street Energy Storage Fund plc", "symbol": "GSF:LSE", "price": 54.4, "currency": "GBX", "change": 0.37, "volume": 767898}, {"name": "Greencoat UK Wind PLC", "symbol": "UKW:LSE", "price": 93.85, "currency": "GBX", "change": 1.79, "volume": 4667982}, {"name": "Gresham House Energy Storage Fund PLC", "symbol": "GRID:LSE", "price": 73.7, "currency": "GBX", "change": -0.07, "volume": 250594}, {"name": "HarbourVest Global Private Equity", "symbol": "HVPE:LSE", "price": 3130.0, "currency": "GBX", "change": 1.46, "volume": 69724}, {"name": "Hargreaves Services PLC", "symbol": "HSP:LSE", "price": 780.0, "currency": "GBX", "change": 0.0, "volume": 38611}, {"name": "Headlam Group PLC", "symbol": "HEAD:LSE", "price": 42.0, "currency": "GBX", "change": -3.45, "volume": 51293}, {"name": "Helical PLC", "symbol": "HLCL:LSE", "price": 198.0, "currency": "GBX", "change": 0.3, "volume": 37397}, {"name": "Henderson Far East Income Limited", "symbol": "HFEL:LSE", "price": 263.5, "currency": "GBX", "change": 2.13, "volume": 734416}, {"name": "Henry Boot PLC", "symbol": "BOOT:LSE", "price": 195.0, "currency": "GBX", "change": 1.04, "volume": 12053}, {"name": "HICL Infrastructure PLC Ord", "symbol": "HICL:LSE", "price": 120.6, "currency": "GBX", "change": 0.33, "volume": 3379788}, {"name": "Hollywood Bowl Group PLC", "symbol": "BOWL:LSE", "price": 257.0, "currency": "GBX", "change": -0.96, "volume": 919388}, {"name": "Hydrogen Capital Growth plc", "symbol": "HGEN:LSE", "price": 13.58, "currency": "GBX", "change": -3.55, "volume": 45558}, {"name": "I3 Energy PLC *", "symbol": "I3E:LSE", "price": 12.74, "currency": "GBX", "change": 0.0, "volume": 0}, {"name": "IG Group Holdings PLC", "symbol": "IGG:LSE", "price": 1362.0, "currency": "GBX", "change": 0.96, "volume": 367255}, {"name": "Impax Asset Management Group PLC", "symbol": "IPX:LSE", "price": 145.4, "currency": "GBX", "change": 0.97, "volume": 725833}, {"name": "Inchcape PLC", "symbol": "INCH:LSE", "price": 885.0, "currency": "GBX", "change": -0.06, "volume": 486781}, {"name": "International Biotechnology Trust", "symbol": "IBT:LSE", "price": 912.0, "currency": "GBX", "change": 0.66, "volume": 57266}, {"name": "International Public Partnerships Limited", "symbol": "INPP:LSE", "price": 129.2, "currency": "GBX", "change": 0.62, "volume": 2467880}, {"name": "IP Group PLC", "symbol": "IPO:LSE", "price": 58.0, "currency": "GBX", "change": 0.69, "volume": 1605216}, {"name": "iShares MSCI AC Far East ex-Japan Small Cap UCITS ETF USD (Dist)", "symbol": "ISFE:LSE:GBX", "price": 3381.0, "currency": "GBX", "change": -1.14, "volume": 3450}, {"name": "ITV PLC", "symbol": "ITV:LSE", "price": 80.65, "currency": "GBX", "change": 0.81, "volume": 6644907}, {"name": "Jadestone Energy PLC", "symbol": "JSE:LSE", "price": 25.0, "currency": "GBX", "change": 0.0, "volume": 307239}, {"name": "James Halstead PLC", "symbol": "JHD:LSE", "price": 135.0, "currency": "GBX", "change": 1.5, "volume": 425261}, {"name": "JD Sports Fashion PLC", "symbol": "JD.:LSE", "price": 78.18, "currency": "GBX", "change": -0.31, "volume": 7624182}, {"name": "Keller Group PLC", "symbol": "KLR:LSE", "price": 2020.0, "currency": "GBX", "change": 1.1, "volume": 141065}, {"name": "Kenmare Resources PLC", "symbol": "KMR:LSE", "price": 264.5, "currency": "GBX", "change": 2.12, "volume": 360146}, {"name": "Kromek Group PLC", "symbol": "KMK:LSE", "price": 11.9, "currency": "GBX", "change": 0.0, "volume": 1266272}, {"name": "Legal & General Group PLC", "symbol": "LGEN:LSE", "price": 274.8, "currency": "GBX", "change": 0.88, "volume": 28471278}, {"name": "Lendinvest PLC", "symbol": "LINV:LSE", "price": 32.5, "currency": "GBX", "change": -1.52, "volume": 9139}, {"name": "Liontrust Asset Management PLC", "symbol": "LIO:LSE", "price": 252.5, "currency": "GBX", "change": 3.06, "volume": 194623}, {"name": "Lloyds Banking Group plc", "symbol": "LLOY:LSE", "price": 104.15, "currency": "GBX", "change": 2.11, "volume": 156634770}, {"name": "Logistics Development Group PLC", "symbol": "LDG:LSE", "price": 15.15, "currency": "GBX", "change": 0.0, "volume": 338622}, {"name": "LondonMetric Property PLC", "symbol": "LMP:LSE", "price": 213.6, "currency": "GBX", "change": 0.09, "volume": 4613486}, {"name": "Lords Group Trading PLC", "symbol": "LORD:LSE", "price": 24.5, "currency": "GBX", "change": 0.0, "volume": 113708}, {"name": "Lowland Investment Company Plc", "symbol": "LWI:LSE", "price": 181.5, "currency": "GBX", "change": 1.11, "volume": 121595}, {"name": "M&G Credit Income Investment Trust plc", "symbol": "MGCI:LSE", "price": 94.4, "currency": "GBX", "change": 0.0, "volume": 296660}, {"name": "M&G PLC", "symbol": "MNG:LSE", "price": 322.4, "currency": "GBX", "change": 1.16, "volume": 5529196}, {"name": "Man Group PLC", "symbol": "EMG:LSE", "price": 273.2, "currency": "GBX", "change": 0.15, "volume": 1149128}, {"name": "Mears Group PLC", "symbol": "MER:LSE", "price": 356.5, "currency": "GBX", "change": -0.56, "volume": 1377428}, {"name": "Mercia Asset Management PLC", "symbol": "MERC:LSE", "price": 29.5, "currency": "GBX", "change": 0.0, "volume": 330868}, {"name": "Michelmersh Brick Holdings PLC", "symbol": "MBH:LSE", "price": 88.0, "currency": "GBX", "change": 0.57, "volume": 118426}, {"name": "Middlefield Canadian Enhanced Income UCITS ETF", "symbol": "MCTP:LSE:GBX", "price": 614.35, "currency": "GBX", "change": -0.51, "volume": 7076}, {"name": "Midwich Group PLC", "symbol": "MIDW:LSE", "price": 224.0, "currency": "GBX", "change": 3.23, "volume": 48118}, {"name": "MJ Gleeson PLC", "symbol": "GLE:LSE", "price": 350.0, "currency": "GBX", "change": 1.45, "volume": 82414}, {"name": "Molten Ventures PLC", "symbol": "GROW:LSE", "price": 476.8, "currency": "GBX", "change": 0.85, "volume": 329921}, {"name": "Montanaro UK Smaller Companies Trust", "symbol": "MTU:LSE", "price": 105.0, "currency": "GBX", "change": 0.48, "volume": 350058}, {"name": "MONY Group PLC", "symbol": "MONY:LSE", "price": 152.9, "currency": "GBX", "change": 1.53, "volume": 1904383}, {"name": "Morgan Advanced Materials PLC", "symbol": "MGAM:LSE", "price": 238.5, "currency": "GBX", "change": 1.27, "volume": 1829029}, {"name": "MTI Wireless Edge Ltd", "symbol": "MWE:LSE", "price": 57.5, "currency": "GBX", "change": -1.71, "volume": 45547}, {"name": "NatWest Group PLC", "symbol": "NWG:LSE", "price": 615.6, "currency": "GBX", "change": -0.26, "volume": 20397364}, {"name": "Newriver Reit PLC", "symbol": "NRR:LSE", "price": 76.4, "currency": "GBX", "change": 0.53, "volume": 756157}, {"name": "NextEnergy Solar Ord", "symbol": "NESF:LSE", "price": 49.7, "currency": "GBX", "change": 0.71, "volume": 1797117}, {"name": "Norcros PLC", "symbol": "NXR:LSE", "price": 349.0, "currency": "GBX", "change": -1.41, "volume": 32294}, {"name": "North Atlantic Smaller Companies", "symbol": "NAS:LSE", "price": 366.0, "currency": "GBX", "change": 0.55, "volume": 28658}, {"name": "NWF Group PLC", "symbol": "NWF:LSE", "price": 138.5, "currency": "GBX", "change": -0.36, "volume": 114598}, {"name": "Octopus Renewables Infrastructure Trust PLC", "symbol": "ORIT:LSE", "price": 53.9, "currency": "GBX", "change": -0.19, "volume": 2034847}, {"name": "Orchard Funding Group PLC", "symbol": "ORCH:LSE", "price": 60.0, "currency": "GBX", "change": 0.0, "volume": 30948}, {"name": "OSB Group PLC", "symbol": "OSB:LSE", "price": 607.5, "currency": "GBX", "change": 1.08, "volume": 521958}, {"name": "Patria Private Equity Trust plc", "symbol": "PPET:LSE", "price": 618.0, "currency": "GBX", "change": -0.96, "volume": 50091}, {"name": "Persimmon PLC", "symbol": "PSN:LSE", "price": 1536.5, "currency": "GBX", "change": 0.36, "volume": 815835}, {"name": "Petrotal Corp", "symbol": "PTAL:LSE", "price": 21.5, "currency": "GBX", "change": 2.38, "volume": 669466}, {"name": "Pets at Home Group PLC", "symbol": "PETS:LSE", "price": 224.0, "currency": "GBX", "change": 0.36, "volume": 668425}, {"name": "Pfizer Inc", "symbol": "PFE:NYQ", "price": 26.65, "currency": "USD", "change": -0.78, "volume": 44786926}, {"name": "Phoenix Group Holdings PLC", "symbol": "PHNX:LSE", "price": 767.5, "currency": "GBX", "change": 0.85, "volume": 2326911}, {"name": "Phoenix Spree Deutschland Ltd Ord", "symbol": "PSDL:LSE", "price": 174.75, "currency": "GBX", "change": -0.43, "volume": 14912}, {"name": "Premier Miton Group PLC", "symbol": "PMI:LSE", "price": 44.5, "currency": "GBX", "change": -1.11, "volume": 919194}, {"name": "Primary Health Properties PLC", "symbol": "PHP:LSE", "price": 107.2, "currency": "GBX", "change": -0.46, "volume": 5687331}, {"name": "Proservice Building Services Marketplace PLC", "symbol": "PRO:LSE", "price": 7.6, "currency": "GBX", "change": 5.56, "volume": 111883}, {"name": "PYX Resources Ltd", "symbol": "PYX:LSE", "price": 0.24, "currency": "GBX", "change": -7.69, "volume": 13414867}, {"name": "PZ Cussons Plc", "symbol": "PZC:LSE", "price": 88.6, "currency": "GBX", "change": 0.91, "volume": 919561}, {"name": "Ramsdens Holdings PLC", "symbol": "RFX:LSE", "price": 425.0, "currency": "GBX", "change": 1.19, "volume": 25396}, {"name": "Real Estate Credit Investments Limited", "symbol": "RECI:LSE", "price": 128.0, "currency": "GBX", "change": 0.39, "volume": 140319}, {"name": "Real Estate Investors PLC", "symbol": "RLE:LSE", "price": 31.4, "currency": "GBX", "change": 0.0, "volume": 221597}, {"name": "Regional REIT Ltd", "symbol": "RGL:LSE", "price": 101.4, "currency": "GBX", "change": -0.59, "volume": 455213}, {"name": "Residential Secure Income plc", "symbol": "RESI:LSE", "price": 55.6, "currency": "GBX", "change": 0.36, "volume": 189842}, {"name": "Rio Tinto PLC", "symbol": "RIO:LSE", "price": 7122.0, "currency": "GBX", "change": 0.06, "volume": 2660189}, {"name": "River Global PLC", "symbol": "RVRG:LSE", "price": 3.88, "currency": "GBX", "change": 0.0, "volume": 181337}, {"name": "River Global PLC", "symbol": "RVRB:LSE", "price": 38.0, "currency": "GBX", "change": 0.0, "volume": 107589}, {"name": "Robert Walters PLC", "symbol": "RWA:LSE", "price": 125.0, "currency": "GBX", "change": 0.81, "volume": 36665}, {"name": "RTW Biotech Opportunities Ltd", "symbol": "RTW:LSE", "price": 2.1, "currency": "USD", "change": 1.45, "volume": 324001}, {"name": "RWS Holdings PLC", "symbol": "RWS:LSE", "price": 76.2, "currency": "GBX", "change": 1.46, "volume": 976142}, {"name": "Schroder European Real Estate Inv Trust", "symbol": "SERE:LSE", "price": 64.4, "currency": "GBX", "change": 0.0, "volume": 85724}, {"name": "Schroder Real Estate Investment Trust", "symbol": "SREI:LSE", "price": 54.7, "currency": "GBX", "change": 1.3, "volume": 1236597}, {"name": "Schroders PLC", "symbol": "SDR:LSE", "price": 586.0, "currency": "GBX", "change": 0.0, "volume": 7250812}, {"name": "SDCL Efficiency Income Trust plc.", "symbol": "SEIT:LSE", "price": 47.5, "currency": "GBX", "change": 0.64, "volume": 2840361}, {"name": "SDI Group PLC", "symbol": "SDI:LSE", "price": 81.5, "currency": "GBX", "change": -0.61, "volume": 342715}, {"name": "Seeing Machines Ltd", "symbol": "SEE:LSE", "price": 3.63, "currency": "GBX", "change": 6.45, "volume": 12940973}, {"name": "Sequoia Economic Infrastructure Inc Ord", "symbol": "SEQI:LSE", "price": 82.0, "currency": "GBX", "change": -0.12, "volume": 1430321}, {"name": "Serica Energy PLC", "symbol": "SQZ:LSE", "price": 231.0, "currency": "GBX", "change": -1.28, "volume": 1080304}, {"name": "Severfield PLC", "symbol": "SFR:LSE", "price": 30.7, "currency": "GBX", "change": -1.29, "volume": 219141}, {"name": "Shearwater Group PLC", "symbol": "SWG:LSE", "price": 46.5, "currency": "GBX", "change": 1.09, "volume": 50610}, {"name": "Social Housing REIT plc", "symbol": "SOHO:LSE", "price": 77.4, "currency": "GBX", "change": 0.39, "volume": 698907}, {"name": "Somero Enterprises Inc", "symbol": "SOM:LSE", "price": 215.0, "currency": "GBX", "change": 0.0, "volume": 100100}, {"name": "Spire Healthcare Group PLC", "symbol": "SPI:LSE", "price": 200.0, "currency": "GBX", "change": 0.0, "volume": 1033196}, {"name": "Springfield Properties PLC", "symbol": "SPR:LSE", "price": 130.5, "currency": "GBX", "change": 0.38, "volume": 35064}, {"name": "Sprott Uranium Miners UCITS ETF Accumulating", "symbol": "URNP:LSE:GBX", "price": 1297.6, "currency": "GBX", "change": 0.75, "volume": 37863}, {"name": "Star Energy Group PLC", "symbol": "STAR:LSE", "price": 14.0, "currency": "GBX", "change": 7.69, "volume": 1196427}, {"name": "SThree PLC", "symbol": "STEM:LSE", "price": 172.4, "currency": "GBX", "change": -0.46, "volume": 179759}, {"name": "STV Group PLC", "symbol": "STVG:LSE", "price": 113.0, "currency": "GBX", "change": -1.74, "volume": 67847}, {"name": "Syncona Limited", "symbol": "SYNC:LSE", "price": 99.0, "currency": "GBX", "change": 0.0, "volume": 79593}, {"name": "Taylor Wimpey PLC", "symbol": "TW.:LSE", "price": 114.95, "currency": "GBX", "change": 0.17, "volume": 12614286}, {"name": "Technology Minerals PLC", "symbol": "TM1:LSE", "price": 0.09, "currency": "GBX", "change": 0.0, "volume": 0}, {"name": "The Biotech Growth Trust PLC", "symbol": "BIOG:LSE", "price": 1255.0, "currency": "GBX", "change": 0.8, "volume": 94945}, {"name": "The Renewables Infrastructure Group Limited", "symbol": "TRIG:LSE", "price": 65.0, "currency": "GBX", "change": 0.46, "volume": 9653075}, {"name": "Totally PLC *", "symbol": "TLY:LSE", "price": 0.24, "currency": "GBX", "change": 0.0, "volume": 653381}, {"name": "TP ICAP Group PLC", "symbol": "TCAP:LSE", "price": 265.0, "currency": "GBX", "change": 1.92, "volume": 1507932}, {"name": "TR Property Investment Trust", "symbol": "TRY:LSE", "price": 351.0, "currency": "GBX", "change": 0.43, "volume": 732853}, {"name": "Tracsis PLC", "symbol": "TRCS:LSE", "price": 320.0, "currency": "GBX", "change": 0.0, "volume": 30756}, {"name": "Tritax Big Box REIT Plc", "symbol": "BBOX:LSE", "price": 173.0, "currency": "GBX", "change": 1.59, "volume": 4961435}, {"name": "TruFin PLC", "symbol": "TRU:LSE", "price": 126.0, "currency": "GBX", "change": 0.4, "volume": 1851980}, {"name": "Unite Group PLC", "symbol": "UTG:LSE", "price": 580.5, "currency": "GBX", "change": 0.17, "volume": 3553811}, {"name": "Value and Indexed Property Income Trust PLC", "symbol": "VIP:LSE", "price": 201.75, "currency": "GBX", "change": -2.06, "volume": 10563}, {"name": "VanEck Rare Earth and Strategic Metals UCITS ETF A USD Acc", "symbol": "REGB:LSE:GBP", "price": 12.92, "currency": "GBP", "change": -0.26, "volume": 95489}, {"name": "Vesuvius plc", "symbol": "VSVS:LSE", "price": 490.2, "currency": "GBX", "change": 1.87, "volume": 114293}, {"name": "Victrex PLC", "symbol": "VCT:LSE", "price": 690.0, "currency": "GBX", "change": 2.07, "volume": 122855}, {"name": "Vodafone Group PLC", "symbol": "VOD:LSE", "price": 115.5, "currency": "GBX", "change": 0.04, "volume": 55923541}, {"name": "Volex PLC", "symbol": "VLX:LSE", "price": 489.5, "currency": "GBX", "change": 1.24, "volume": 674186}, {"name": "VP PLC", "symbol": "VP.:LSE", "price": 490.5, "currency": "GBX", "change": 1.03, "volume": 3593}, {"name": "VPC Specialty Lending Investments PLC Ord", "symbol": "VSL:LSE", "price": 13.58, "currency": "GBX", "change": 0.56, "volume": 37295}, {"name": "Watkin Jones PLC", "symbol": "WJG:LSE", "price": 30.8, "currency": "GBX", "change": 0.65, "volume": 1942107}, {"name": "Wickes Group PLC", "symbol": "WIX:LSE", "price": 246.5, "currency": "GBX", "change": -1.0, "volume": 386425}, {"name": "Workspace Group PLC", "symbol": "WKP:LSE", "price": 420.5, "currency": "GBX", "change": 0.96, "volume": 282184}, {"name": "Wynnstay Group PLC", "symbol": "WYN:LSE", "price": 390.0, "currency": "GBX", "change": 0.0, "volume": 10486}, {"name": "ZIGUP PLC", "symbol": "ZIG:LSE", "price": 399.5, "currency": "GBX", "change": 0.5, "volume": 288319}];
+
+// State
+let filteredData = [...PORTFOLIO];
+let currentPage = 1;
+const PAGE_SIZE = 25;
+let sortKey = 'name-asc';
+let modalChartInstance = null;
+let chartInstances = {};
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtNum(n, dp=2) {
+  if (n === null || n === undefined) return '—';
+  return n.toLocaleString('en-GB', {minimumFractionDigits: dp, maximumFractionDigits: dp});
+}
+function fmtVol(n) {
+  if (!n) return '—';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+  return n.toString();
+}
+function getExchange(symbol) {
+  const parts = symbol.split(':');
+  return parts[1] || parts[0];
+}
+function getTicker(symbol) { return symbol.split(':')[0]; }
+function getFTUrl(symbol) {
+  const ticker = symbol.replace(':', ':').replace(':LSE', '');
+  return `https://markets.ft.com/data/equities/tearsheet/summary?s=${encodeURIComponent(symbol)}`;
+}
+
+// ============================================================
+// GENERATE SIMULATED 1-YEAR PRICE DATA
+// Uses today's price as endpoint and reverse-simulates
+// ============================================================
+function generateYearData(holding) {
+  const points = 52; // weekly
+  const endPrice = holding.price;
+  const seed = holding.symbol.split('').reduce((a,c) => a + c.charCodeAt(0), 0);
+  const rng = (i) => {
+    const x = Math.sin(seed * 9301 + i * 49297 + 233) * 15731;
+    return x - Math.floor(x);
+  };
+  // Random annual drift between -30% and +40%
+  const drift = -0.30 + rng(0) * 0.70;
+  const startPrice = endPrice / (1 + drift);
+  const vol = 0.015 + rng(1) * 0.02;
+  const prices = [];
+  let p = startPrice;
+  const trend = (endPrice - startPrice) / points;
+  for (let i = 0; i < points; i++) {
+    const noise = (rng(i+2) - 0.5) * 2 * vol * p;
+    p = p + trend + noise;
+    if (p < 0.01) p = 0.01;
+    prices.push(parseFloat(p.toFixed(2)));
+  }
+  prices[prices.length - 1] = endPrice; // ensure exact endpoint
+  return prices;
+}
+
+function generateLabels() {
+  const labels = [];
+  const d = new Date();
+  d.setDate(d.getDate() - 52 * 7);
+  for (let i = 0; i < 52; i++) {
+    d.setDate(d.getDate() + 7);
+    labels.push(d.toLocaleDateString('en-GB', {month:'short', day:'numeric'}));
+  }
+  return labels;
+}
+const YEAR_LABELS = generateLabels();
+
+// ============================================================
+// INIT KPIs
+// ============================================================
+function initKPIs() {
+  const d = new Date();
+  document.getElementById('hero-date').textContent = d.toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  document.getElementById('footer-date').textContent = 'Last updated ' + d.toLocaleDateString('en-GB', {year:'numeric', month:'long', day:'numeric'});
+
+  const n = PORTFOLIO.length;
+  const up = PORTFOLIO.filter(h => h.change > 0).length;
+  const down = PORTFOLIO.filter(h => h.change < 0).length;
+  const avg = PORTFOLIO.reduce((s,h) => s + h.change, 0) / n;
+
+  document.getElementById('kpi-count').textContent = n;
+  document.getElementById('kpi-up').textContent = up;
+  document.getElementById('kpi-up-pct').textContent = `${((up/n)*100).toFixed(0)}% of portfolio`;
+  document.getElementById('kpi-down').textContent = down;
+  document.getElementById('kpi-down-pct').textContent = `${((down/n)*100).toFixed(0)}% of portfolio`;
+  document.getElementById('kpi-avg').textContent = (avg >= 0 ? '+' : '') + fmtNum(avg) + '%';
+  document.getElementById('kpi-avg').className = 'kpi-value ' + (avg > 0 ? 'up' : avg < 0 ? 'down' : '');
+
+  const exchanges = {};
+  PORTFOLIO.forEach(h => { const e = getExchange(h.symbol); exchanges[e] = (exchanges[e]||0)+1; });
+  const ex = Object.keys(exchanges).sort((a,b) => exchanges[b]-exchanges[a]);
+  document.getElementById('kpi-exchanges').textContent = ex.length;
+  document.getElementById('kpi-exchange-names').textContent = ex.slice(0,3).join(', ');
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+const CHART_DEFAULTS = {
+  plugins: { legend: { display: false }, tooltip: { bodyFont: { family: 'DM Sans' }, titleFont: { family: 'DM Sans' } } },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#888' } },
+    y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#888' } }
+  }
+};
+
+function initCharts() {
+  // 1. Distribution of daily changes
+  const bins = [-8,-6,-4,-2,0,2,4,6,8];
+  const labels = ['<-6%', '-6 to -4%', '-4 to -2%', '-2 to 0%', '0 to 2%', '2 to 4%', '4 to 6%', '>6%'];
+  const counts = new Array(labels.length).fill(0);
+  PORTFOLIO.forEach(h => {
+    const c = h.change;
+    if (c < -6) counts[0]++;
+    else if (c < -4) counts[1]++;
+    else if (c < -2) counts[2]++;
+    else if (c < 0) counts[3]++;
+    else if (c < 2) counts[4]++;
+    else if (c < 4) counts[5]++;
+    else if (c < 6) counts[6]++;
+    else counts[7]++;
+  });
+  const barColors = ['#c0392b','#c0392b','#c0392b','#c0392b','#1a7a4a','#1a7a4a','#1a7a4a','#1a7a4a'];
+
+  if (chartInstances['dist']) chartInstances['dist'].destroy();
+  chartInstances['dist'] = new Chart(document.getElementById('chart-distribution'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: counts, backgroundColor: barColors, borderRadius: 2 }] },
+    options: { ...CHART_DEFAULTS, plugins: { ...CHART_DEFAULTS.plugins }, responsive: true, maintainAspectRatio: false }
+  });
+
+  // 2. Adv/Dec/Flat
+  const adv = PORTFOLIO.filter(h => h.change > 0).length;
+  const dec = PORTFOLIO.filter(h => h.change < 0).length;
+  const flat = PORTFOLIO.filter(h => h.change === 0).length;
+
+  if (chartInstances['advdec']) chartInstances['advdec'].destroy();
+  chartInstances['advdec'] = new Chart(document.getElementById('chart-adv-dec'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Advancing', 'Declining', 'Unchanged'],
+      datasets: [{ data: [adv, dec, flat], backgroundColor: ['#1a7a4a','#c0392b','#ddd'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { display: true, position: 'right', labels: { font: { family: 'DM Sans', size: 11 }, color: '#555', boxWidth: 12, padding: 14 } }, tooltip: CHART_DEFAULTS.plugins.tooltip }
+    }
+  });
+}
+
+// ============================================================
+// MOVERS
+// ============================================================
+function initMovers() {
+  const sorted = [...PORTFOLIO].sort((a,b) => b.change - a.change);
+  const gainers = sorted.filter(h => h.change > 0).slice(0, 8);
+  const losers = sorted.filter(h => h.change < 0).reverse().slice(0, 8);
+
+  function renderMovers(items, el, cls) {
+    el.innerHTML = items.map(h => {
+      const icon = cls === 'up' ? '▲' : '▼';
+      const sign = cls === 'up' ? '+' : '';
+      return `
+        <div class="mover-item" onclick="openModal(${JSON.stringify(h.symbol)})">
+          <div>
+            <div class="mover-name">${h.name}</div>
+            <div class="mover-symbol">${getTicker(h.symbol)}</div>
+          </div>
+          <div class="mover-change ${cls}" aria-label="${cls === 'up' ? 'Up' : 'Down'} ${Math.abs(h.change).toFixed(2)} percent">
+            <span class="mover-icon" aria-hidden="true">${icon}</span>${sign}${fmtNum(h.change)}%
+          </div>
+        </div>`;
+    }).join('');
+  }
+  renderMovers(gainers, document.getElementById('top-gainers'), 'up');
+  renderMovers(losers, document.getElementById('top-losers'), 'down');
+}
+
+// ============================================================
+// HOLDINGS TABLE
+// ============================================================
+function applySort(data) {
+  const [key, dir] = sortKey.split('-');
+  return [...data].sort((a, b) => {
+    let va, vb;
+    if (key === 'name') { va = a.name; vb = b.name; }
+    else if (key === 'change') { va = a.change; vb = b.change; }
+    else if (key === 'price') { va = a.price; vb = b.price; }
+    else if (key === 'volume') { va = a.volume; vb = b.volume; }
+    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return dir === 'asc' ? va - vb : vb - va;
+  });
+}
+
+function renderTable() {
+  const sorted = applySort(filteredData);
+  const total = sorted.length;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = sorted.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('holdings-tbody');
+  tbody.innerHTML = page.map((h, i) => {
+    const changeCls = h.change > 0 ? 'up' : h.change < 0 ? 'down' : 'flat';
+    const icon = h.change > 0 ? '▲' : h.change < 0 ? '▼' : '—';
+    const changeStr = h.change > 0 ? '+' + fmtNum(h.change) : fmtNum(h.change);
+    const ariaLabel = `${h.change > 0 ? 'Up' : h.change < 0 ? 'Down' : 'Unchanged'} ${Math.abs(h.change).toFixed(2)} percent`;
+    return `
+      <tr onclick="openModal('${h.symbol}')">
+        <td style="color:var(--grey-text)">${start + i + 1}</td>
+        <td style="font-weight:500">${h.name}</td>
+        <td><span class="ticker-badge">${getTicker(h.symbol)}</span></td>
+        <td>${fmtNum(h.price)}</td>
+        <td><span class="change-pill ${changeCls}" aria-label="${ariaLabel}"><span class="pill-icon" aria-hidden="true">${icon}</span>${changeStr}%</span></td>
+      </tr>`;
+  }).join('');
+
+  // Pagination
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pag = document.getElementById('pagination');
+  pag.innerHTML = '';
+  const addBtn = (label, page, active=false) => {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (active ? ' active' : '');
+    btn.textContent = label;
+    btn.onclick = () => { currentPage = page; renderTable(); window.scrollTo({top: document.getElementById('holdings').offsetTop - 80, behavior: 'smooth'}); };
+    pag.appendChild(btn);
+  };
+  if (currentPage > 1) addBtn('‹', currentPage - 1);
+  const range = [];
+  for (let p = Math.max(1, currentPage-2); p <= Math.min(totalPages, currentPage+2); p++) range.push(p);
+  range.forEach(p => addBtn(p, p, p === currentPage));
+  if (currentPage < totalPages) addBtn('›', currentPage + 1);
+  document.getElementById('page-info').textContent = `  Showing ${start+1}–${Math.min(start+PAGE_SIZE, total)} of ${total}`;
+}
+
+function drawSparkline(canvas, holding) {
+  const prices = generateYearData(holding);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const min = Math.min(...prices), max = Math.max(...prices);
+  const range = max - min || 1;
+  ctx.clearRect(0,0,w,h);
+  const color = holding.change >= 0 ? '#1a7a4a' : '#c0392b';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  prices.forEach((p, i) => {
+    const x = (i / (prices.length-1)) * w;
+    const y = h - ((p - min) / range) * (h - 4) - 2;
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+// ============================================================
+// SEARCH & SORT
+// ============================================================
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  filteredData = PORTFOLIO.filter(h => h.name.toLowerCase().includes(q) || h.symbol.toLowerCase().includes(q));
+  currentPage = 1;
+  renderTable();
+});
+
+document.getElementById('sort-select').addEventListener('change', function() {
+  sortKey = this.value;
+  renderTable();
+});
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(symbol) {
+  const h = PORTFOLIO.find(x => x.symbol === symbol);
+  if (!h) return;
+
+  document.getElementById('modal-symbol').textContent = symbol;
+  document.getElementById('modal-title').textContent = h.name;
+  document.getElementById('modal-price').textContent = fmtNum(h.price) + ' ' + h.currency;
+
+  const changEl = document.getElementById('modal-change');
+  changEl.textContent = (h.change >= 0 ? '+' : '') + fmtNum(h.change) + '%';
+  changEl.style.color = h.change > 0 ? 'var(--green)' : h.change < 0 ? 'var(--red)' : 'var(--black)';
+
+  document.getElementById('modal-volume').textContent = fmtVol(h.volume);
+  document.getElementById('modal-ft-link').href = getFTUrl(symbol);
+  document.getElementById('modal-ft-link').textContent = `View ${getTicker(symbol)} on Financial Times ↗`;
+
+  if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
+
+  const prices = generateYearData(h);
+  const color = h.change >= 0 ? '#1a7a4a' : '#c0392b';
+  const fillColor = h.change >= 0 ? 'rgba(26,122,74,0.06)' : 'rgba(192,57,43,0.06)';
+  const ctx = document.getElementById('modal-chart').getContext('2d');
+  modalChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: YEAR_LABELS,
+      datasets: [{
+        data: prices, borderColor: color, backgroundColor: fillColor,
+        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4,
+        pointHoverBackgroundColor: color
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: ctx => `${fmtNum(ctx.parsed.y)} ${h.currency}` } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#888', maxTicksLimit: 8 } },
+        y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#888' } }
+      }
+    }
+  });
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal-overlay') && !event.target.classList.contains('modal-close')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal({target: document.getElementById('modal-overlay')}); });
+
+// ============================================================
+// CSV UPLOAD
+// ============================================================
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleCSV(file);
+});
+document.getElementById('csv-file-input').addEventListener('change', function() {
+  if (this.files[0]) handleCSV(this.files[0]);
+});
+
+function handleCSV(file) {
+  const status = document.getElementById('upload-status');
+  status.style.color = 'var(--grey-text)';
+  status.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = parseCSV(e.target.result);
+      if (parsed.length === 0) throw new Error('No valid holdings found.');
+      PORTFOLIO = parsed;
+      filteredData = [...PORTFOLIO];
+      currentPage = 1;
+      // Persist to localStorage
+      try {
+        localStorage.setItem('isa_portfolio', JSON.stringify({ data: PORTFOLIO, filename: file.name, saved: new Date().toISOString() }));
+        showStorageBadge(file.name);
+        recordSnapshot(file.name);
+      } catch(storErr) { /* quota exceeded — silent fail */ }
+      initKPIs();
+      initCharts();
+      initMovers();
+      renderTable();
+      renderHeatmap();
+      renderHistory();
+      status.style.color = 'var(--green)';
+      status.textContent = `✓ Portfolio updated — ${parsed.length} holdings loaded from ${file.name}`;
+      const clearWrap = document.getElementById('clear-storage-wrap');
+      if (clearWrap) clearWrap.style.display = 'block';
+    } catch(err) {
+      status.style.color = 'var(--red)';
+      status.textContent = '✗ Error parsing CSV: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) throw new Error('File too short.');
+  const header = lines[0].split(',').map(h => h.trim().replace(/\r/g,''));
+  const nameIdx = header.findIndex(h => h === 'Name');
+  const symIdx = header.findIndex(h => h === 'Symbol');
+  const priceIdx = header.findIndex(h => h === 'Last Price');
+  const currIdx = header.findIndex(h => h === 'Last Price_Currency');
+  const changeIdx = header.findIndex(h => h.includes("Change - %"));
+  const volIdx = header.findIndex(h => h === 'Volume');
+  if (nameIdx < 0 || symIdx < 0 || priceIdx < 0) throw new Error('Missing required columns (Name, Symbol, Last Price).');
+  const results = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/\r/g,''));
+    const name = cols[nameIdx];
+    if (!name) continue;
+    results.push({
+      name, symbol: cols[symIdx] || '',
+      price: parseFloat(cols[priceIdx]) || 0,
+      currency: currIdx >= 0 ? cols[currIdx] : 'GBX',
+      change: changeIdx >= 0 ? parseFloat(cols[changeIdx]) || 0 : 0,
+      volume: volIdx >= 0 ? parseInt(cols[volIdx]) || 0 : 0
+    });
+  }
+  return results;
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+let heatmapFilter = 'all';
+
+function heatmapColor(change) {
+  // Returns background and text colour based on change value
+  const maxChange = 8; // clamp at ±8%
+  const c = Math.max(-maxChange, Math.min(maxChange, change));
+  if (c === 0) return { bg: '#e8e8e8', text: '#555' };
+  if (c > 0) {
+    const intensity = c / maxChange; // 0–1
+    const r = Math.round(255 - intensity * (255 - 26));
+    const g = Math.round(255 - intensity * (255 - 122));
+    const b = Math.round(255 - intensity * (255 - 74));
+    const textLight = intensity > 0.4;
+    return { bg: `rgb(${r},${g},${b})`, text: textLight ? '#fff' : '#0a0a0a' };
+  } else {
+    const intensity = Math.abs(c) / maxChange;
+    const r = Math.round(255 - intensity * (255 - 192));
+    const g = Math.round(255 - intensity * (255 - 57));
+    const b = Math.round(255 - intensity * (255 - 43));
+    const textLight = intensity > 0.4;
+    return { bg: `rgb(${r},${g},${b})`, text: textLight ? '#fff' : '#0a0a0a' };
+  }
+}
+
+function renderHeatmap() {
+  const grid = document.getElementById('heatmap-grid');
+  let data = [...PORTFOLIO];
+  if (heatmapFilter === 'up')   data = data.filter(h => h.change > 0);
+  if (heatmapFilter === 'down') data = data.filter(h => h.change < 0);
+  if (heatmapFilter === 'flat') data = data.filter(h => h.change === 0);
+  // Sort by change descending for visual grouping
+  data.sort((a, b) => b.change - a.change);
+
+  grid.innerHTML = data.map(h => {
+    const { bg, text } = heatmapColor(h.change);
+    const sign = h.change > 0 ? '+' : '';
+    const ticker = getTicker(h.symbol);
+    const changeStr = `${sign}${h.change.toFixed(2)}%`;
+    return `<div class="heatmap-cell" style="background:${bg}; color:${text};"
+      title="${h.name} — ${changeStr}"
+      onclick="openModal('${h.symbol}')"
+      role="button" aria-label="${h.name}, ${changeStr}">
+      <div class="heatmap-cell-ticker">${ticker}</div>
+      <div class="heatmap-cell-change">${changeStr}</div>
+    </div>`;
+  }).join('');
+
+  // Render legend
+  const bar = document.getElementById('heatmap-legend-bar');
+  const steps = [-8,-6,-4,-2,0,2,4,6,8];
+  bar.innerHTML = steps.map(v => {
+    const { bg } = heatmapColor(v === 0 ? 0 : v);
+    return `<div class="heatmap-legend-swatch" style="background:${bg};" title="${v >= 0 ? '+' : ''}${v}%"></div>`;
+  }).join('');
+}
+
+function setHeatmapFilter(filter, btn) {
+  heatmapFilter = filter;
+  document.querySelectorAll('.heatmap-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHeatmap();
+}
+
+// ============================================================
+// HISTORY & SNAPSHOTS
+// ============================================================
+const HISTORY_KEY = 'isa_portfolio_history';
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveHistory(history) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
+}
+
+function recordSnapshot(filename) {
+  const history = loadHistory();
+  const today = new Date().toISOString().split('T')[0];
+  // Replace any existing snapshot for today
+  const existing = history.findIndex(s => s.date === today);
+  const avgChange = PORTFOLIO.reduce((s, h) => s + h.change, 0) / PORTFOLIO.length;
+  const up = PORTFOLIO.filter(h => h.change > 0).length;
+  const down = PORTFOLIO.filter(h => h.change < 0).length;
+  const snapshot = {
+    date: today,
+    filename,
+    count: PORTFOLIO.length,
+    avgChange: parseFloat(avgChange.toFixed(4)),
+    advancing: up,
+    declining: down,
+    unchanged: PORTFOLIO.length - up - down
+  };
+  if (existing >= 0) history[existing] = snapshot;
+  else history.push(snapshot);
+  history.sort((a, b) => a.date.localeCompare(b.date));
+  saveHistory(history);
+  renderHistory();
+}
+
+function deleteSnapshot(date) {
+  const history = loadHistory().filter(s => s.date !== date);
+  saveHistory(history);
+  renderHistory();
+}
+
+let historyCharts = {};
+
+function renderHistory() {
+  const history = loadHistory();
+  const emptyEl = document.getElementById('history-empty');
+  const hasEl = document.getElementById('history-has-data');
+
+  if (history.length === 0) {
+    emptyEl.style.display = 'block';
+    hasEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  hasEl.style.display = 'block';
+
+  // Pills
+  const pillsEl = document.getElementById('history-pills');
+  pillsEl.innerHTML = history.map(s => {
+    const d = new Date(s.date);
+    const label = d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+    return `<span class="history-snapshot-pill">
+      ${label}
+      <button class="history-del" onclick="event.stopPropagation(); deleteSnapshot('${s.date}')" title="Delete this snapshot">×</button>
+    </span>`;
+  }).join('');
+
+  // Summary stats from latest snapshot
+  const latest = history[history.length - 1];
+  const first = history[0];
+  const allChanges = history.map(s => s.avgChange);
+  const bestDay = Math.max(...allChanges);
+  const worstDay = Math.min(...allChanges);
+  const overallAvg = allChanges.reduce((a, b) => a + b, 0) / allChanges.length;
+
+  document.getElementById('history-stats').innerHTML = `
+    <div>
+      <div class="history-stat-label">Snapshots Recorded</div>
+      <div class="history-stat-value">${history.length}</div>
+    </div>
+    <div>
+      <div class="history-stat-label">Best Day (Avg)</div>
+      <div class="history-stat-value" style="color:var(--green)">+${bestDay.toFixed(2)}%</div>
+    </div>
+    <div>
+      <div class="history-stat-label">Worst Day (Avg)</div>
+      <div class="history-stat-value" style="color:var(--red)">${worstDay.toFixed(2)}%</div>
+    </div>
+    <div>
+      <div class="history-stat-label">Overall Avg</div>
+      <div class="history-stat-value" style="color:${overallAvg>=0?'var(--green)':'var(--red)'}">
+        ${overallAvg >= 0 ? '+' : ''}${overallAvg.toFixed(2)}%
+      </div>
+    </div>`;
+
+  const labels = history.map(s => new Date(s.date).toLocaleDateString('en-GB', {day:'numeric', month:'short'}));
+  const perfData = history.map(s => s.avgChange);
+  const countData = history.map(s => s.count);
+
+  // Illustrative benchmark: simulate FTSE values around the portfolio's range
+  // These are illustrative offsets — not real data
+  const ftseAllShare = perfData.map((v, i) => {
+    const seed = i * 7 + 3;
+    const noise = (Math.sin(seed * 127.1) * 0.5 + Math.cos(seed * 311.7) * 0.3);
+    return parseFloat((v * 0.7 + noise * 0.4).toFixed(4));
+  });
+  const ftse250 = perfData.map((v, i) => {
+    const seed = i * 13 + 7;
+    const noise = (Math.sin(seed * 89.3) * 0.6 + Math.cos(seed * 213.5) * 0.4);
+    return parseFloat((v * 0.85 + noise * 0.5).toFixed(4));
+  });
+
+  const FONT = { family: 'DM Sans', size: 11 };
+
+  // Performance chart
+  if (historyCharts['perf']) historyCharts['perf'].destroy();
+  historyCharts['perf'] = new Chart(document.getElementById('chart-history-perf'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: perfData,
+        borderColor: '#0a0a0a', backgroundColor: 'rgba(10,10,10,0.04)',
+        borderWidth: 2, fill: true, tension: 0.35, pointRadius: history.length > 20 ? 0 : 4,
+        pointBackgroundColor: '#0a0a0a'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y >= 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` }, bodyFont: FONT, titleFont: FONT } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: FONT, color: '#888', maxTicksLimit: 8 } },
+        y: { grid: { color: '#f0f0f0' }, ticks: { font: FONT, color: '#888', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }
+      }
+    }
+  });
+
+  // Count chart
+  if (historyCharts['count']) historyCharts['count'].destroy();
+  historyCharts['count'] = new Chart(document.getElementById('chart-history-count'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: countData,
+        borderColor: '#888', backgroundColor: 'rgba(136,136,136,0.06)',
+        borderWidth: 2, fill: true, tension: 0.35, pointRadius: history.length > 20 ? 0 : 4,
+        pointBackgroundColor: '#888'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y} holdings` }, bodyFont: FONT, titleFont: FONT } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: FONT, color: '#888', maxTicksLimit: 8 } },
+        y: { grid: { color: '#f0f0f0' }, ticks: { font: FONT, color: '#888' }, suggestedMin: 0 }
+      }
+    }
+  });
+
+  // Benchmark comparison chart
+  if (historyCharts['bench']) historyCharts['bench'].destroy();
+  historyCharts['bench'] = new Chart(document.getElementById('chart-benchmark'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Your Portfolio',
+          data: perfData,
+          borderColor: '#0a0a0a', borderWidth: 2.5, fill: false,
+          tension: 0.35, pointRadius: history.length > 20 ? 0 : 3, pointBackgroundColor: '#0a0a0a'
+        },
+        {
+          label: 'FTSE All-Share (illus.)',
+          data: ftseAllShare,
+          borderColor: '#aaa', borderWidth: 1.5, fill: false, borderDash: [4, 3],
+          tension: 0.35, pointRadius: 0
+        },
+        {
+          label: 'FTSE 250 (illus.)',
+          data: ftse250,
+          borderColor: '#ccc', borderWidth: 1.5, fill: false, borderDash: [2, 4],
+          tension: 0.35, pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: FONT, color: '#888', boxWidth: 24, padding: 16 } },
+        tooltip: { mode: 'index', intersect: false, callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y >= 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` }, bodyFont: FONT, titleFont: FONT }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: FONT, color: '#888', maxTicksLimit: 8 } },
+        y: { grid: { color: '#f0f0f0' }, ticks: { font: FONT, color: '#888', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// NAV SCROLL
+// ============================================================
+function scrollToSection(selector) {
+  document.querySelector(selector).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearStorage() {
+  try { localStorage.removeItem('isa_portfolio'); } catch(e) {}
+  document.getElementById('upload-status').textContent = 'Saved portfolio cleared. Reload the page to restore the default data.';
+  document.getElementById('clear-storage-wrap').style.display = 'none';
+}
+
+// ============================================================
+// STORAGE BADGE
+// ============================================================
+function showStorageBadge(filename) {
+  let badge = document.getElementById('storage-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'storage-badge';
+    badge.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--black);color:var(--white);padding:10px 20px;font-size:12px;letter-spacing:0.04em;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(badge);
+  }
+  badge.textContent = `💾 Saved to browser — will reload automatically next visit`;
+  badge.style.opacity = '1';
+  setTimeout(() => { badge.style.opacity = '0'; }, 4000);
+}
+
+// ============================================================
+// BOOT — load from localStorage if available, else use bundled data
+// ============================================================
+(function boot() {
+  // Step 1: Try to restore from localStorage
+  try {
+    const saved = localStorage.getItem('isa_portfolio');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.data && parsed.data.length > 0) {
+        PORTFOLIO = parsed.data;
+        filteredData = [...PORTFOLIO];
+        const d = new Date(parsed.saved);
+        const uploadStatus = document.getElementById('upload-status');
+        if (uploadStatus) {
+          uploadStatus.style.color = 'var(--grey-text)';
+          uploadStatus.textContent = `Portfolio loaded from browser storage — last uploaded ${d.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'})} (${parsed.filename || 'CSV'})`;
+        }
+        const clearWrap = document.getElementById('clear-storage-wrap');
+        if (clearWrap) clearWrap.style.display = 'block';
+      }
+    }
+  } catch(e) { console.warn('localStorage load failed:', e); }
+
+  // Step 2: Render each section independently so one failure can't blank the page
+  try { initKPIs(); }    catch(e) { console.error('initKPIs failed:', e); }
+  try { initCharts(); }  catch(e) { console.error('initCharts failed:', e); }
+  try { initMovers(); }  catch(e) { console.error('initMovers failed:', e); }
+  try { renderTable(); } catch(e) { console.error('renderTable failed:', e); }
+  try { renderHeatmap(); } catch(e) { console.error('renderHeatmap failed:', e); }
+  try { renderHistory(); } catch(e) { console.error('renderHistory failed:', e); }
+})();
+
+</script>
+</body>
+</html>
